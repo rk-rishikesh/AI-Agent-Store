@@ -1,24 +1,29 @@
 import React from "react";
-import Link from "next/link";
+import Image from "next/image";
 
 const FooterBanner = () => {
   return (
-    <div className="footer-banner-container">
-      <div className="banner-desc">
-        <div className="left">
-          <p>Browse & Select</p>
-          <h3>AI Agents for</h3>
-          <h3>Everyone, Everywhere.</h3>
-          <p>AI Agent Ecosystem</p>
+    <div className="relative bg-[#f02d34] text-white rounded-xl w-full mt-32 px-10 py-24 overflow-hidden">
+      <div className="flex flex-col md:flex-row justify-between items-start relative z-10">
+        {/* Text Content */}
+        <div className="max-w-2xl space-y-4">
+          <p className="text-white text-base md:text-xl font-funnel">IP-Licensed AI Creatives</p>
+          <h3 className="text-4xl md:text-6xl font-extrabold leading-tight font-funnel">
+            For Brands, Designers & Influencers
+          </h3>
+          <p className="text-white text-2xl md:text-3xl font-funnel">The Future of Ethical Ad Generation</p>
         </div>
-        {/* <div className="right">
-          <p>AI AGENT</p>
-          <h3>AI AGENT</h3>
-          <p>AI AGENT</p>
-         
-        </div> */}
 
-        <img src="/assets/images/agent2.png" className="footer-banner-image" />
+        {/* Image on Right */}
+        <div className="hidden md:block absolute -top-20 right-10 h-[120%]">
+          <Image
+            src="/assets/images/footer.png"
+            alt="IPixel Footer Banner"
+            width={350}
+            height={350}
+            className="object-contain"
+          />
+        </div>
       </div>
     </div>
   );
