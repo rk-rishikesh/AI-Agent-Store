@@ -1,7 +1,13 @@
 import React from "react";
 import { Product, FooterBanner, HeroBanner } from "../components";
 
-const products = [
+interface ProductType {
+  _id: number;
+  name: string;
+  posterImage: string;
+}
+
+const products: ProductType[] = [
   {
     _id: 1,
     name: "Product Studio",
@@ -29,7 +35,7 @@ const products = [
   },
 ];
 
-const Home = () => (
+const Home: React.FC = () => (
   <div>
     <HeroBanner />
     <div className="products-heading -mt-4">
@@ -47,4 +53,4 @@ const Home = () => (
   </div>
 );
 
-export default Home;
+export default Home; 

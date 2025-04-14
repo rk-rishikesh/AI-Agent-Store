@@ -1,7 +1,15 @@
 import React from "react";
 import Link from "next/link";
 
-const Product = ({ product: { _id, name, posterImage } }) => {
+interface ProductProps {
+  product: {
+    _id: number;
+    name: string;
+    posterImage: string;
+  };
+}
+
+const Product: React.FC<ProductProps> = ({ product: { _id, name, posterImage } }) => {
   return (
     <div>
       <Link href={`/product/${_id}`}>
@@ -20,4 +28,4 @@ const Product = ({ product: { _id, name, posterImage } }) => {
   );
 };
 
-export default Product;
+export default Product; 

@@ -1,7 +1,7 @@
 import React from "react";
 import Image from "next/image";
 
-const FooterBanner = () => {
+const FooterBanner: React.FC = () => {
   return (
     <div className="relative bg-[#f02d34] text-white rounded-xl w-full mt-32 px-10 py-24 overflow-hidden">
       <div className="flex flex-col md:flex-row justify-between items-start relative z-10">
@@ -29,4 +29,4 @@ const FooterBanner = () => {
   );
 };
 
-export default FooterBanner;
+export default FooterBanner; 

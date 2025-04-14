@@ -2,7 +2,7 @@ import React from "react";
 import Image from "next/image";
 import Link from "next/link";
 
-export default function HeroBanner() {
+const HeroBanner: React.FC = () => {
   return (
     <div className="bg-gradient-to-b text-gray-900">
       {/* Hero Section */}
@@ -115,4 +115,6 @@ export default function HeroBanner() {
       </section> */}
     </div>
   );
-}
+};
+
+export default HeroBanner; 
