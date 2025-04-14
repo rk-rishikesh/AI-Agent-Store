@@ -1,3 +1,5 @@
+'use client';
+
 import React from "react";
 import { AiFillInstagram, AiOutlineTwitter } from "react-icons/ai";
 

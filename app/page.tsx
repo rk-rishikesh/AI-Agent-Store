@@ -35,22 +35,22 @@ const products: ProductType[] = [
   },
 ];
 
-const Home: React.FC = () => (
-  <div>
-    <HeroBanner />
-    <div className="products-heading -mt-4">
-      <h2>Explore IP Templates</h2>
-      <p>Discover the best IP cleared Design Assets</p>
+export default function Home() {
+  return (
+    <div>
+      <HeroBanner />
+      <div className="products-heading -mt-4">
+        <h2>Explore IP Templates</h2>
+        <p>Discover the best IP cleared Design Assets</p>
+      </div>
+
+      <div className="products-container">
+        {products.map((product) => (
+          <Product key={product._id} product={product} />
+        ))}
+      </div>
+
+      <FooterBanner />
     </div>
-
-    <div className="products-container">
-      {products?.map((product) => (
-        <Product key={product._id} product={product} />
-      ))}
-    </div>
-
-    <FooterBanner />
-  </div>
-);
-
-export default Home; 
+  );
+} 
