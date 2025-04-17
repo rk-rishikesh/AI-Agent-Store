@@ -69,7 +69,7 @@ const PricingCard: React.FC<PricingCardProps> = ({ price, title, features, link 
         </li>
       ))}
     </ul>
-    <Link 
+    <Link
       href={link}
       className="block w-full py-3 px-6 text-center bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
     >
@@ -91,7 +91,7 @@ export default function Home() {
             <h2 className="text-3xl font-bold mb-4">Explore IP Templates</h2>
             <p className="text-xl text-gray-600">Discover the best IP cleared Design Assets</p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <BigCard
               title="Product Studio"
@@ -131,7 +131,7 @@ export default function Home() {
             <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-3xl p-8 text-white flex flex-col justify-center">
               <h3 className="text-2xl font-bold mb-4">Ready to get started?</h3>
               <p className="mb-6">Join thousands of creators using IPixel today</p>
-              <Link 
+              <Link
                 href="/product"
                 className="bg-white text-indigo-600 px-6 py-3 rounded-xl font-medium hover:bg-indigo-50 transition-colors inline-block text-center"
               >
@@ -229,7 +229,7 @@ export default function Home() {
       </div>
 
       {/* Final CTA */}
-        <FooterBanner />
+      <FooterBanner />
     </div>
   );
 } 
