@@ -5,6 +5,7 @@ interface ProductType {
   _id: number;
   name: string;
   posterImage: string;
+  path?: string;
 }
 
 const products: ProductType[] = [
@@ -12,6 +13,7 @@ const products: ProductType[] = [
     _id: 1,
     name: "Product Studio",
     posterImage: "/assets/categories/product.png",
+    path: "/product"
   },
   {
     _id: 2,
