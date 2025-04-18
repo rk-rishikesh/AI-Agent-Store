@@ -37,18 +37,34 @@ export class OpenAIImageAnalysisService implements ImageAnalysisService {
             // Use GPT-4 Vision to analyze the image
             const response = await this.client.chat.completions.create({
                 model: "gpt-4o",
-                max_tokens: 300, // Keep token usage low to reduce costs
+                max_tokens: 500, // Increased token limit for more detailed analysis
+                response_format: { type: "json_object" }, // Force JSON output
                 messages: [
                     {
                         role: "system",
-                        content: "You are a product photography expert. Describe the product in detail, focusing on its visual characteristics that would be important for creating a professional studio photo."
+                        content: `You are an expert product photographer and analyst with specialized knowledge in identifying product details for commercial photography.
+Your task is to analyze product images and extract key visual characteristics that would be essential for creating professional studio photos.
+Focus on capturing all visually significant elements with precise terminology.
+ALWAYS respond with valid JSON only.`
                     },
                     {
                         role: "user",
                         content: [
                             {
                                 type: "text",
-                                text: "Describe this product in detail for a photo studio. Include color, shape, material, key features, and type of product. Format your response as a JSON object with 'description' (a concise paragraph) and 'attributes' (with keys for color, shape, material, category)."
+                                text: `Analyze this product image in detail. Extract all information that would be relevant for creating professional product photography.
+Include:
+1. Precise color descriptions (including specific shades, finishes, and any color variations)
+2. Exact shape and dimensional characteristics
+3. Material composition and surface textures
+4. All visible text, logos, and branding elements (exactly as they appear)
+5. Key product features that define its visual identity
+6. Product category and specific type
+
+Respond ONLY with a JSON object containing:
+- "description": a comprehensive paragraph with all visual details
+- "attributes": an object with keys for color, shape, material, texture, branding, text_elements, and category
+- "photography_considerations": specific lighting, angle, and composition suggestions for this type of product`
                             },
                             {
                                 type: "image_url",
@@ -67,31 +83,39 @@ export class OpenAIImageAnalysisService implements ImageAnalysisService {
 
             // Parse the response
             const content = response.choices[0]?.message?.content || "";
-            let jsonMatch;
 
             try {
-                logAnalysis("Attempting to parse JSON response");
-                // Try to extract JSON from the response
-                jsonMatch = content.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    const result = JSON.parse(jsonMatch[0]) as ImageAnalysisResult;
-                    logAnalysis("Successfully parsed JSON result", {
-                        description: result.description.substring(0, 100) + (result.description.length > 100 ? "..." : ""),
-                        attributeCount: result.attributes ? Object.keys(result.attributes).length : 0
-                    });
-                    return result;
-                } else {
-                    logAnalysis("Failed to find JSON in response, response starts with:", content.substring(0, 100));
-                }
+                logAnalysis("Parsing JSON response");
+                const result = JSON.parse(content) as ImageAnalysisResult;
+                logAnalysis("Successfully parsed JSON result", {
+                    description: result.description.substring(0, 100) + (result.description.length > 100 ? "..." : ""),
+                    attributeCount: result.attributes ? Object.keys(result.attributes).length : 0
+                });
+                return result;
             } catch (error) {
                 logAnalysis("Error parsing JSON from response:", error);
-            }
 
-            // Fallback: return plain text as description
-            logAnalysis("Using fallback: returning plain text as description");
-            return {
-                description: content
-            };
+                // Fallback: Try to extract JSON from the content
+                try {
+                    const jsonMatch = content.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        const result = JSON.parse(jsonMatch[0]) as ImageAnalysisResult;
+                        logAnalysis("Extracted JSON from response text", {
+                            description: result.description.substring(0, 100) + (result.description.length > 100 ? "..." : ""),
+                            attributeCount: result.attributes ? Object.keys(result.attributes).length : 0
+                        });
+                        return result;
+                    }
+                } catch (nestedError) {
+                    logAnalysis("Failed to extract JSON from response text");
+                }
+
+                // Final fallback: return plain text as description
+                logAnalysis("Using fallback: returning plain text as description");
+                return {
+                    description: content
+                };
+            }
         } catch (error) {
             logAnalysis("Error analyzing image:", error);
             throw error;

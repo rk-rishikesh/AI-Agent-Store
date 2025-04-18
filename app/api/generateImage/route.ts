@@ -3,27 +3,52 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function POST(req: NextRequest) {
   const { prompt } = await req.json();
 
-  const response = await fetch('https://api.openai.com/v1/images/generations', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'dall-e-3',
-      prompt: prompt,
-      size: '1024x1024',
-      style: 'vivid',
-      n: 1,
-    }),
-  });
+  // Ensure the prompt emphasizes product preservation with a structured directive
+  const enhancedPrompt = `!!CRITICAL PRESERVATION DIRECTIVE!!
+This is a professional product photography request that REQUIRES:
+- The product must remain 100% identical to the reference image
+- ALL text elements must be preserved exactly as shown (same words, fonts, sizes, colors, positions)
+- ALL logos, graphics, and design elements must be preserved exactly as shown
+- Product color, shape, proportions, and materials must remain exactly as shown
+- NO creative interpretation or modification of ANY product elements is permitted
 
-  const result = await response.json();
+${prompt}
 
-  if (!response.ok) {
-    return NextResponse.json({ error: result.error?.message || 'Failed to generate image' }, { status: 400 });
+FINAL REMINDER: This product MUST be rendered exactly as it appears in the reference with absolutely NO CHANGES to text, logos, design elements, or any other product characteristics.`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'dall-e-3',
+        prompt: enhancedPrompt,
+        size: '1024x1024',
+        style: 'natural',     // Natural style for photorealistic product renderings
+        quality: 'hd',        // HD quality for better detail preservation
+        response_format: 'url', // Simple URL response format
+        n: 1,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      console.error('DALL-E API error:', result);
+      return NextResponse.json({
+        error: result.error?.message || 'Failed to generate image'
+      }, { status: 400 });
+    }
+
+    const imageUrl = result.data?.[0]?.url;
+    return NextResponse.json({ imageUrl });
+  } catch (error) {
+    console.error('Server error:', error);
+    return NextResponse.json({
+      error: 'Failed to process image generation request'
+    }, { status: 500 });
   }
-
-  const imageUrl = result.data?.[0]?.url;
-  return NextResponse.json({ imageUrl });
 }
