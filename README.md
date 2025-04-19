@@ -46,14 +46,6 @@ The architecture is designed to be modular and extensible:
 - Configurable prompts for different photo styles
 - Stateless file handling (no database required)
 
-## Extending
-
-To add new AI providers:
-
-1. Create new implementations of the AIImageService or ImageAnalysisService classes
-2. Add new providers to the AIServiceProvider enum
-3. Update the factory functions
-
 ## Credit Optimization
 
 To minimize OpenAI API costs:

@@ -1,264 +1,303 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import axios from 'axios';
-import Image from 'next/image';
+import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
-// Add new type for image analysis
-type ImageAnalysis = {
-  description: string;
-  attributes?: {
-    color?: string;
-    material?: string;
-    shape?: string;
-    category?: string;
-    [key: string]: string | undefined;
-  };
+// Keep only the product generation type and modify it
+type ProductGeneration = {
+  productImage: File | null;
+  selectedTemplate: string;
+  generatedPrompt: string;
+  generatedImages: string[];
+  numOutputs: number;
 };
 
 export default function ProductStudio() {
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
-  const [resultImage, setResultImage] = useState<string | null>(null);
-  const [prompt, setPrompt] = useState<string>('');
-  const [isLoading, setIsLoading] = useState(false);
+  // Keep only the product generation state with modified fields
+  const [productGeneration, setProductGeneration] = useState<ProductGeneration>({
+    productImage: null,
+    selectedTemplate: '',
+    generatedPrompt: '',
+    generatedImages: [],
+    numOutputs: 1,
+  });
+  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [skipAnalysis, setSkipAnalysis] = useState(false);
-  const [imageAnalysis, setImageAnalysis] = useState<ImageAnalysis | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setError(null);
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const templates = [
+    { id: "template1", path: "/templates/template 1.jpg", name: "Natural Beauty" },
+    { id: "template2", path: "/templates/template 2.jpg", name: "Day Light" },
+    { id: "template3", path: "/templates/template 3.jpg", name: "Gold Style" },
+    { id: "template4", path: "/templates/template 4.jpg", name: "Nature's Table" },
+  ];
 
-    if (!file.type.includes('image/')) {
-      setError('Please select an image file');
-      return;
-    }
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
 
-    setSelectedImage(file);
-    setResultImage(null);
+      reader.onload = () => {
+        const base64 = reader.result as string;
+        if (
+          !base64.startsWith('data:image/png') &&
+          !base64.startsWith('data:image/jpeg') &&
+          !base64.startsWith('data:image/webp') &&
+          !base64.startsWith('data:image/gif')
+        ) {
+          return reject(
+            new Error('Unsupported image format. Use PNG, JPEG, WEBP, or GIF.')
+          );
+        }
+        resolve(base64);
+      };
 
-    // Generate preview
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPreviewImage(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
   };
 
-  const handlePromptChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setPrompt(e.target.value);
+  const generateSocialMediaImage = async (prompt: string, numOutputs: number) => {
+    const response = await fetch('/api/generateImage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, numOutputs }),
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      setError(`Image generation error: ${data.error}`);
+      return;
+    }
+
+    setProductGeneration(prev => ({
+      ...prev,
+      generatedImages: Array.isArray(data.imageUrls) ? data.imageUrls : [data.imageUrl]
+    }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerate = async () => {
+    if (!productGeneration.productImage || !productGeneration.selectedTemplate) {
+      setError('Please upload a product image and select a template.');
+      return;
+    }
+
+    setIsGenerating(true);
     setError(null);
-    setImageAnalysis(null);
-
-    // When skipAnalysis is true, we need a prompt but image is optional
-    if (skipAnalysis && !prompt.trim()) {
-      setError('Please enter a prompt when skipping image analysis');
-      return;
-    }
-
-    // When not skipping analysis, we need an image
-    if (!skipAnalysis && !selectedImage) {
-      setError('Please select an image or enable "Skip image analysis"');
-      return;
-    }
 
     try {
-      setIsLoading(true);
+      const productBase64 = await convertToBase64(productGeneration.productImage);
 
-      const formData = new FormData();
-      if (selectedImage) {
-        formData.append('image', selectedImage);
+      // Get the template path for the selected template
+      const selectedTemplatePath = templates.find(t => t.id === productGeneration.selectedTemplate)?.path;
+
+      if (!selectedTemplatePath) {
+        throw new Error('Invalid template selected');
       }
-      formData.append('prompt', prompt);
-      formData.append('skipAnalysis', skipAnalysis.toString());
 
-      const response = await axios.post('/api/generate-studio-photo', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      // Fetch the template image and convert to base64
+      const templateResponse = await fetch(selectedTemplatePath);
+      const templateBlob = await templateResponse.blob();
+      const templateFile = new File([templateBlob], 'template.jpg', { type: 'image/jpeg' });
+      const templateBase64 = await convertToBase64(templateFile);
+
+      const res = await fetch('/api/generatePrompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productImage: productBase64,
+          referenceImage: templateBase64,
+        }),
       });
 
-      if (response.data.success) {
-        setResultImage(response.data.imageUrl);
-        if (response.data.analysis) {
-          setImageAnalysis(response.data.analysis);
-        }
-      } else {
-        throw new Error(response.data.error || 'Failed to generate studio photo');
+      const data = await res.json();
+      if (!res.ok) {
+        setError(`Prompt error: ${data.error}`);
+        return;
       }
-    } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
-      setError(errorMessage);
-      console.error('Error generating studio photo:', err);
+
+      setProductGeneration(prev => ({
+        ...prev,
+        generatedPrompt: data.prompt
+      }));
+      await generateSocialMediaImage(data.prompt, productGeneration.numOutputs);
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || 'Something went wrong.');
     } finally {
-      setIsLoading(false);
+      setIsGenerating(false);
     }
-  };
-
-  const handleDownload = () => {
-    if (!resultImage) return;
-
-    const link = document.createElement('a');
-    link.href = resultImage;
-    link.download = 'studio-photo.png';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
   };
 
   const resetForm = () => {
-    setSelectedImage(null);
-    setPreviewImage(null);
-    setResultImage(null);
-    setPrompt('');
+    setProductGeneration({
+      productImage: null,
+      selectedTemplate: '',
+      generatedPrompt: '',
+      generatedImages: [],
+      numOutputs: 1,
+    });
     setError(null);
-    setImageAnalysis(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
   };
 
   return (
     <div className="container mx-auto py-10 px-4">
       <div className="flex flex-col items-center">
-        <h1 className="text-3xl font-bold mb-8">Product Photo Studio</h1>
+        <h1 className="text-3xl font-bold mb-8">Product Studio</h1>
 
         <div className="w-full max-w-4xl bg-white rounded-lg shadow-xl overflow-hidden">
           <div className="p-6 sm:p-10">
             <div className="mb-6 p-4 bg-blue-50 text-blue-700 rounded-lg">
-              <p><strong>Note:</strong> This product photo studio uses AI to create professional photos in two ways:</p>
+              <p><strong>Note:</strong> This product studio uses AI to create professional product images in three simple steps:</p>
               <ol className="list-decimal ml-5 mt-2">
-                <li><strong>Upload an image + provide description:</strong> AI analyzes your product image and combines this with your description.</li>
-                <li><strong>Text-only mode:</strong> Check "Skip image analysis" and just describe the product you want to visualize.</li>
+                <li><strong>Upload your product image:</strong> Upload the photo of your product that you want to enhance.</li>
+                <li><strong>Choose a template:</strong> Select one of our professional templates for your product image.</li>
+                <li><strong>Set number of outputs:</strong> Choose how many different shots you want (1-4).</li>
               </ol>
             </div>
 
-            {!resultImage ? (
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <label className="block text-lg font-medium">Upload Product Image</label>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="w-full text-gray-600 file:mr-4 file:py-2 file:px-4 file:border-0 file:rounded-lg file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                  />
-                </div>
+            {!productGeneration.generatedImages.length ? (
+              <div className="space-y-6">
+                <div className="space-y-5">
+                  <div>
+                    <label className="block text-lg font-medium">Upload Product Image</label>
+                    <p className="text-sm text-gray-600 mb-2">Upload the photo of your product</p>
+                    <input
+                      type="file"
+                      accept="image/png, image/jpeg, image/webp, image/gif"
+                      onChange={(e) => setProductGeneration(prev => ({
+                        ...prev,
+                        productImage: e.target.files?.[0] || null
+                      }))}
+                      className="w-full text-gray-600 file:mr-4 file:py-2 file:px-4 file:border-0 file:rounded-lg file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                  </div>
 
-                {previewImage && (
-                  <div className="flex justify-center">
-                    <div className="relative w-64 h-64 border rounded-lg overflow-hidden">
-                      <Image
-                        src={previewImage}
-                        alt="Preview"
-                        fill
-                        style={{ objectFit: 'contain' }}
-                      />
+                  <div>
+                    <label className="block text-lg font-medium">Select a Template</label>
+                    <p className="text-sm text-gray-600 mb-3">Choose a style template for your product</p>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {templates.map((template) => (
+                        <div
+                          key={template.id}
+                          onClick={() => setProductGeneration(prev => ({ ...prev, selectedTemplate: template.id }))}
+                          className={`relative cursor-pointer border-2 rounded-lg overflow-hidden transition-all ${productGeneration.selectedTemplate === template.id
+                            ? 'border-blue-500 shadow-md'
+                            : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                        >
+                          <div className="relative h-32 w-full">
+                            <Image
+                              src={template.path}
+                              alt={template.name}
+                              fill
+                              style={{ objectFit: 'cover' }}
+                            />
+                          </div>
+                          <div className="p-2 text-center">
+                            <p className="text-sm font-medium">{template.name}</p>
+                          </div>
+                          {productGeneration.selectedTemplate === template.id && (
+                            <div className="absolute top-2 right-2 h-5 w-5 bg-blue-500 rounded-full flex items-center justify-center">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          )}
+                        </div>
+                      ))}
                     </div>
                   </div>
-                )}
 
-                <div className="space-y-2">
-                  <label className="block text-lg font-medium">
-                    Describe Your Product and Desired Look
-                  </label>
-                  <textarea
-                    value={prompt}
-                    onChange={handlePromptChange}
-                    rows={4}
-                    placeholder="E.g., A sleek black coffee mug with minimal design on a white surface, professional product photography"
-                    className="w-full p-3 border rounded-lg focus:ring focus:ring-blue-300 focus:border-blue-500"
-                  />
+                  <div>
+                    <label className="block text-lg font-medium">Number of Output Images</label>
+                    <p className="text-sm text-gray-600 mb-3">How many different product shots do you want?</p>
+
+                    <div className="flex items-center space-x-4">
+                      {[1, 2, 3, 4].map((num) => (
+                        <div
+                          key={num}
+                          onClick={() => setProductGeneration(prev => ({ ...prev, numOutputs: num }))}
+                          className={`flex items-center justify-center h-12 w-12 rounded-lg cursor-pointer transition-all ${productGeneration.numOutputs === num
+                            ? 'bg-blue-500 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            }`}
+                        >
+                          <span className="font-medium">{num}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      More images will take longer to generate but give you more options.
+                    </p>
+                  </div>
+
+                  {error && <div className="p-3 bg-red-50 text-red-700 rounded">{error}</div>}
+
+                  <div className="flex justify-center pt-4">
+                    <button
+                      onClick={handleGenerate}
+                      disabled={isGenerating || !productGeneration.productImage || !productGeneration.selectedTemplate}
+                      className={`px-6 py-3 rounded-lg text-white font-medium ${isGenerating || !productGeneration.productImage || !productGeneration.selectedTemplate
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 hover:bg-blue-700'
+                        }`}
+                    >
+                      {isGenerating ? 'Generating...' : `Generate ${productGeneration.numOutputs} Product Image${productGeneration.numOutputs > 1 ? 's' : ''}`}
+                    </button>
+                  </div>
                 </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="skipAnalysis"
-                    checked={skipAnalysis}
-                    onChange={(e) => setSkipAnalysis(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <label htmlFor="skipAnalysis" className="text-sm text-gray-700">
-                    {selectedImage
-                      ? "Skip image analysis (saves credits, but requires detailed description)"
-                      : "Text-only mode: generate without uploading an image (requires detailed description)"}
-                  </label>
-                </div>
-
-                {error && <div className="p-3 bg-red-50 text-red-700 rounded">{error}</div>}
-
-                <div className="flex justify-center pt-4">
-                  <button
-                    type="submit"
-                    disabled={(isLoading) || (!selectedImage && !skipAnalysis) || (skipAnalysis && !prompt.trim())}
-                    className={`px-6 py-3 rounded-lg text-white font-medium ${(isLoading) || (!selectedImage && !skipAnalysis) || (skipAnalysis && !prompt.trim())
-                      ? 'bg-gray-400 cursor-not-allowed'
-                      : 'bg-blue-600 hover:bg-blue-700'
-                      }`}
-                  >
-                    {isLoading ? 'Generating...' : 'Generate Studio Photo'}
-                  </button>
-                </div>
-              </form>
+              </div>
             ) : (
               <div className="space-y-6">
                 <div className="text-center">
-                  <h2 className="text-xl font-semibold">Your Studio Photo Is Ready!</h2>
+                  <h2 className="text-xl font-semibold">Your Product Images Are Ready!</h2>
                 </div>
 
-                <div className="flex justify-center">
-                  <div className="relative w-full h-96 border rounded-lg overflow-hidden">
-                    <Image
-                      src={resultImage}
-                      alt="Generated studio photo"
-                      fill
-                      style={{ objectFit: 'contain' }}
-                    />
-                  </div>
-                </div>
-
-                {imageAnalysis && (
-                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                    <h3 className="font-semibold mb-2">AI Product Analysis</h3>
-                    <p className="mb-3">{imageAnalysis.description}</p>
-
-                    {imageAnalysis.attributes && (
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        {Object.entries(imageAnalysis.attributes).map(([key, value]) => (
-                          value && (
-                            <div key={key} className="flex">
-                              <span className="font-medium capitalize mr-1">{key}:</span>
-                              <span>{value}</span>
-                            </div>
-                          )
-                        ))}
-                      </div>
-                    )}
+                {productGeneration.generatedPrompt && (
+                  <div className="mt-6 p-4 border rounded bg-gray-50">
+                    <h3 className="text-lg font-semibold mb-2">AI-Generated Prompt:</h3>
+                    <p className="whitespace-pre-line">{productGeneration.generatedPrompt}</p>
                   </div>
                 )}
 
-                <div className="flex justify-center space-x-4">
-                  <button
-                    onClick={handleDownload}
-                    className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium"
-                  >
-                    Download Photo
-                  </button>
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-4">Generated Images:</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {productGeneration.generatedImages.map((imageUrl, index) => (
+                      <div key={index} className="border rounded-lg p-3 shadow-sm">
+                        <img
+                          src={imageUrl}
+                          alt={`Generated Product ${index + 1}`}
+                          className="rounded w-full h-auto"
+                        />
+                        <div className="mt-3 flex justify-between items-center">
+                          <span className="text-sm font-medium">Shot {index + 1}</span>
+                          <button
+                            onClick={() => {
+                              const link = document.createElement('a');
+                              link.href = imageUrl;
+                              link.download = `product-image-${index + 1}.png`;
+                              document.body.appendChild(link);
+                              link.click();
+                              document.body.removeChild(link);
+                            }}
+                            className="text-sm px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded transition-colors"
+                          >
+                            Download
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex justify-center mt-6">
                   <button
                     onClick={resetForm}
                     className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium"
                   >
-                    Create Another
+                    Create More Images
                   </button>
                 </div>
               </div>
