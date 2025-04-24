@@ -76,7 +76,7 @@ export class OpenAIImageService implements AIImageService {
                 model: "gpt-image-1",
                 prompt: prompt,
                 image: imageFiles,
-                quality: "medium", // using medium to save credits
+                quality: "low", // using medium to save credits
                 n: numOutputs
             });
 

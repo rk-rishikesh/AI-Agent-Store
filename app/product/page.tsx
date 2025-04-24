@@ -24,6 +24,7 @@ export default function ProductStudio() {
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState(0);
 
   const templates = [
     {
@@ -92,6 +93,7 @@ export default function ProductStudio() {
     });
 
     const result = await response.json();
+    console.log("ProductStudio::Result: ", result);
 
     if (!result.success) {
       throw new Error(result.error || 'Failed to generate image');
@@ -148,6 +150,7 @@ export default function ProductStudio() {
       setError(err.message || 'Something went wrong.');
     } finally {
       setIsGenerating(false);
+      setStep(4);
     }
   };
 
@@ -163,149 +166,114 @@ export default function ProductStudio() {
   };
 
   return (
-    <div className="container mx-auto py-10 px-4">
-      <div className="flex flex-col items-center">
-        <h1 className="text-3xl font-bold mb-8">Product Studio</h1>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto py-10 px-4">
+        <div className="flex flex-col items-center">
+          <h1 className="text-3xl font-bold mb-8">Product Studio</h1>
 
-        <div className="w-full max-w-4xl bg-white rounded-lg shadow-xl overflow-hidden">
-          <div className="p-6 sm:p-10">
-            <div className="mb-6 p-4 bg-blue-50 text-blue-700 rounded-lg">
-              <p><strong>Note:</strong> This product studio uses AI to create professional product images in three simple steps:</p>
-              <ol className="list-decimal ml-5 mt-2">
-                <li><strong>Upload your product image:</strong> Upload the photo of your product that you want to enhance.</li>
-                <li><strong>Choose a template:</strong> Select one of our professional templates for your product image.</li>
-                <li><strong>Set number of outputs:</strong> Choose how many different shots you want (1-4).</li>
-              </ol>
-            </div>
-
-            {!productGeneration.generatedImages.length ? (
-              <div className="space-y-6">
-                <div className="space-y-5">
-                  <div>
-                    <label className="block text-lg font-medium">Upload Product Image</label>
-                    <p className="text-sm text-gray-600 mb-2">Upload the photo of your product</p>
-                    <input
-                      type="file"
-                      accept="image/png, image/jpeg, image/webp, image/gif"
-                      onChange={(e) => setProductGeneration(prev => ({
+          <div className="w-full bg-white rounded-lg shadow-xl overflow-hidden">
+            <div className="p-6 sm:p-10">
+              {step === 0 && (
+                <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6">
+                  <h2 className="text-2xl font-semibold">Step 1: Upload Product Image</h2>
+                  <p className="text-gray-600">Upload the photo of your product</p>
+                  <input
+                    type="file"
+                    accept="image/png, image/jpeg, image/webp, image/gif"
+                    onChange={(e) => {
+                      setProductGeneration(prev => ({
                         ...prev,
                         productImage: e.target.files?.[0] || null
-                      }))}
-                      className="w-full text-gray-600 file:mr-4 file:py-2 file:px-4 file:border-0 file:rounded-lg file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    />
-                  </div>
+                      }));
+                      setStep(1);
+                    }}
+                    className="w-full max-w-md text-gray-600 file:mr-4 file:py-2 file:px-4 file:border-0 file:rounded-lg file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                  />
+                </div>
+              )}
 
-                  <div>
-                    <label className="block text-lg font-medium">Select a Template</label>
-                    <p className="text-sm text-gray-600 mb-3">Choose a style template for your product. Each template has a predefined photography style.</p>
-
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {templates.map((template) => (
-                        <div
-                          key={template.id}
-                          onClick={() => setProductGeneration(prev => ({ ...prev, selectedTemplate: template.id }))}
-                          className={`relative cursor-pointer border-2 rounded-lg overflow-hidden transition-all ${productGeneration.selectedTemplate === template.id
+              {step === 1 && (
+                <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6">
+                  <h2 className="text-2xl font-semibold">Step 2: Select a Template</h2>
+                  <p className="text-gray-600">Choose a style template for your product</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 w-full max-w-4xl">
+                    {templates.map((template) => (
+                      <div
+                        key={template.id}
+                        onClick={() => {
+                          setProductGeneration(prev => ({ ...prev, selectedTemplate: template.id }));
+                          setStep(2);
+                        }}
+                        className={`relative cursor-pointer border-2 rounded-lg overflow-hidden transition-all ${
+                          productGeneration.selectedTemplate === template.id
                             ? 'border-blue-500 shadow-md'
                             : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                        >
-                          <div className="relative h-32 w-full">
-                            <Image
-                              src={template.path}
-                              alt={template.name}
-                              fill
-                              style={{ objectFit: 'cover' }}
-                            />
-                          </div>
-                          <div className="p-2 text-center">
-                            <p className="text-sm font-medium">{template.name}</p>
-                          </div>
-                          {productGeneration.selectedTemplate === template.id && (
-                            <div className="absolute top-2 right-2 h-5 w-5 bg-blue-500 rounded-full flex items-center justify-center">
-                              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                          )}
+                        }`}
+                      >
+                        <div className="relative h-32 w-full">
+                          <Image
+                            src={template.path}
+                            alt={template.name}
+                            fill
+                            style={{ objectFit: 'cover' }}
+                          />
                         </div>
-                      ))}
-                    </div>
+                        <div className="p-2 text-center">
+                          <p className="text-sm font-medium">{template.name}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                </div>
+              )}
 
-                  <div>
-                    <label className="block text-lg font-medium">Number of Output Images</label>
-                    <p className="text-sm text-gray-600 mb-3">How many different product shots do you want?</p>
-
-                    <div className="flex items-center space-x-4">
-                      {[1, 2, 3, 4].map((num) => (
-                        <div
-                          key={num}
-                          onClick={() => setProductGeneration(prev => ({ ...prev, numOutputs: num }))}
-                          className={`flex items-center justify-center h-12 w-12 rounded-lg cursor-pointer transition-all ${productGeneration.numOutputs === num
+              {step === 2 && (
+                <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6">
+                  <h2 className="text-2xl font-semibold">Step 3: Number of Output Images</h2>
+                  <p className="text-gray-600">How many different product shots do you want?</p>
+                  <div className="flex items-center space-x-4">
+                    {[1, 2, 3, 4].map((num) => (
+                      <div
+                        key={num}
+                        onClick={() => {
+                          setProductGeneration(prev => ({ ...prev, numOutputs: num }));
+                          setStep(3);
+                        }}
+                        className={`flex items-center justify-center h-12 w-12 rounded-lg cursor-pointer transition-all ${
+                          productGeneration.numOutputs === num
                             ? 'bg-blue-500 text-white'
                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                            }`}
-                        >
-                          <span className="font-medium">{num}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      More images will take longer to generate but give you more options.
-                    </p>
+                        }`}
+                      >
+                        <span className="font-medium">{num}</span>
+                      </div>
+                    ))}
                   </div>
+                </div>
+              )}
 
+              {step === 3 && (
+                <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6">
+                  <h2 className="text-2xl font-semibold">Step 4: Generate Images</h2>
                   {error && <div className="p-3 bg-red-50 text-red-700 rounded">{error}</div>}
-
-                  <div className="flex justify-center pt-4">
-                    <button
-                      onClick={handleGenerate}
-                      disabled={isGenerating || !productGeneration.productImage || !productGeneration.selectedTemplate}
-                      className={`px-6 py-3 rounded-lg text-white font-medium ${isGenerating || !productGeneration.productImage || !productGeneration.selectedTemplate
+                  <button
+                    onClick={handleGenerate}
+                    disabled={isGenerating || !productGeneration.productImage || !productGeneration.selectedTemplate}
+                    className={`px-6 py-3 rounded-lg text-white font-medium ${
+                      isGenerating || !productGeneration.productImage || !productGeneration.selectedTemplate
                         ? 'bg-gray-400 cursor-not-allowed'
                         : 'bg-blue-600 hover:bg-blue-700'
-                        }`}
-                    >
-                      {isGenerating ? 'Generating...' : `Generate ${productGeneration.numOutputs} Product Image${productGeneration.numOutputs > 1 ? 's' : ''}`}
-                    </button>
-                  </div>
+                    }`}
+                  >
+                    {isGenerating ? 'Generating...' : `Generate ${productGeneration.numOutputs} Product Image${productGeneration.numOutputs > 1 ? 's' : ''}`}
+                  </button>
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="text-center">
-                  <h2 className="text-xl font-semibold">Your Product Images Are Ready!</h2>
-                </div>
+              )}
 
-                {productGeneration.generatedPrompt && (
-                  <div className="mt-6 p-4 border rounded bg-gray-50">
-                    <h3 className="text-lg font-semibold mb-2">Applied Photography Style:</h3>
-                    <div className="flex flex-col md:flex-row gap-4">
-                      {productGeneration.selectedTemplate && (
-                        <div className="w-full md:w-1/4">
-                          <div className="relative h-32 w-full mb-2 rounded overflow-hidden">
-                            <Image
-                              src={templates.find(t => t.id === productGeneration.selectedTemplate)?.path || ''}
-                              alt="Template style"
-                              fill
-                              style={{ objectFit: 'cover' }}
-                            />
-                          </div>
-                          <p className="text-sm font-medium text-center">
-                            {templates.find(t => t.id === productGeneration.selectedTemplate)?.name}
-                          </p>
-                        </div>
-                      )}
-                      <div className="w-full md:w-3/4">
-                        <p className="whitespace-pre-line text-sm">{productGeneration.generatedPrompt}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="mt-6">
-                  <h3 className="text-lg font-semibold mb-4">Generated Images:</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {step === 4 && productGeneration.generatedImages.length > 0 && (
+                <div className="min-h-[60vh] flex flex-col items-center justify-center space-y-6">
+                  <h2 className="text-2xl font-semibold">Your Product Images Are Ready!</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                     {productGeneration.generatedImages.map((imageUrl, index) => (
                       <div key={index} className="border rounded-lg p-3 shadow-sm">
                         <img
@@ -332,9 +300,6 @@ export default function ProductStudio() {
                       </div>
                     ))}
                   </div>
-                </div>
-
-                <div className="flex justify-center mt-6">
                   <button
                     onClick={resetForm}
                     className="px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg font-medium"
@@ -342,15 +307,33 @@ export default function ProductStudio() {
                     Create More Images
                   </button>
                 </div>
-              </div>
-            )}
-          </div>
-        </div>
+              )}
 
-        <div className="mt-8">
-          <Link href="/" className="text-blue-600 hover:underline">
-            ← Back to Home
-          </Link>
+              {step > 0 && step < 4 && !productGeneration.generatedImages.length && (
+                <div className="flex justify-between mt-6">
+                  <button
+                    onClick={() => setStep(prev => prev - 1)}
+                    className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setStep(prev => prev + 1)}
+                    disabled={!productGeneration.productImage || !productGeneration.selectedTemplate}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-8">
+            <Link href="/" className="text-blue-600 hover:underline">
+              ← Back to Home
+            </Link>
+          </div>
         </div>
       </div>
     </div>
