@@ -26,10 +26,30 @@ export default function ProductStudio() {
   const [error, setError] = useState<string | null>(null);
 
   const templates = [
-    { id: "template1", path: "/templates/template 1.jpg", name: "Natural Beauty" },
-    { id: "template2", path: "/templates/template 2.jpg", name: "Day Light" },
-    { id: "template3", path: "/templates/template 3.jpg", name: "Gold Style" },
-    { id: "template4", path: "/templates/template 4.jpg", name: "Nature's Table" },
+    {
+      id: "template1",
+      path: "/templates/template 1.jpg",
+      name: "Natural Beauty",
+      prompt: "Create a professional studio photograph of this product on a clean white background with soft natural lighting. Emphasize the product's texture and details with subtle shadows. Use a bright, airy aesthetic with slightly warm tones."
+    },
+    {
+      id: "template2",
+      path: "/templates/template 2.jpg",
+      name: "Day Light",
+      prompt: "Capture this product in bright daylight setting with natural shadows. Place it on a light wooden surface with some soft environmental elements in the background. Create a lifestyle context that highlights the product's everyday use."
+    },
+    {
+      id: "template3",
+      path: "/templates/template 3.jpg",
+      name: "Gold Style",
+      prompt: "Present this product in a luxury setting with golden accents and dramatic lighting. Use a dark background with rich, warm tones. Create elegant highlights that accentuate the premium quality of the product with a sophisticated atmosphere."
+    },
+    {
+      id: "template4",
+      path: "/templates/template 4.jpg",
+      name: "Nature's Table",
+      prompt: "Photograph this product in a natural setting with organic elements like wood, plants, or stone. Use a rustic aesthetic with earthy tones and natural textures. Create a harmonious composition that connects the product with nature."
+    },
   ];
 
   const convertToBase64 = (file: File): Promise<string> => {
@@ -56,22 +76,32 @@ export default function ProductStudio() {
     });
   };
 
-  const generateSocialMediaImage = async (prompt: string, numOutputs: number) => {
-    const response = await fetch('/api/generateImage', {
+  const generateStudioPhotos = async (productImageBase64: string, templateImageBase64: string, prompt: string, numOutputs: number) => {
+    const imagePromises = [];
+
+    // Instead of making multiple API calls, make a single call with numOutputs
+    const response = await fetch('/api/generate-studio-photo', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, numOutputs }),
+      body: JSON.stringify({
+        productImage: productImageBase64,
+        templateImage: templateImageBase64,
+        prompt,
+        numOutputs
+      }),
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      setError(`Image generation error: ${data.error}`);
-      return;
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to generate image');
     }
 
+    // For now, we only get one image back, but we'll put it in an array
+    // for consistency with the previous implementation
     setProductGeneration(prev => ({
       ...prev,
-      generatedImages: Array.isArray(data.imageUrls) ? data.imageUrls : [data.imageUrl]
+      generatedImages: [result.imageUrl]
     }));
   };
 
@@ -87,39 +117,32 @@ export default function ProductStudio() {
     try {
       const productBase64 = await convertToBase64(productGeneration.productImage);
 
-      // Get the template path for the selected template
-      const selectedTemplatePath = templates.find(t => t.id === productGeneration.selectedTemplate)?.path;
+      // Get the template path and prompt for the selected template
+      const selectedTemplate = templates.find(t => t.id === productGeneration.selectedTemplate);
 
-      if (!selectedTemplatePath) {
+      if (!selectedTemplate) {
         throw new Error('Invalid template selected');
       }
 
       // Fetch the template image and convert to base64
-      const templateResponse = await fetch(selectedTemplatePath);
+      const templateResponse = await fetch(selectedTemplate.path);
       const templateBlob = await templateResponse.blob();
       const templateFile = new File([templateBlob], 'template.jpg', { type: 'image/jpeg' });
       const templateBase64 = await convertToBase64(templateFile);
 
-      const res = await fetch('/api/generatePrompt', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productImage: productBase64,
-          referenceImage: templateBase64,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setError(`Prompt error: ${data.error}`);
-        return;
-      }
+      // Use the predefined prompt from the template
+      const prompt = selectedTemplate.prompt;
 
       setProductGeneration(prev => ({
         ...prev,
-        generatedPrompt: data.prompt
+        generatedPrompt: prompt
       }));
-      await generateSocialMediaImage(data.prompt, productGeneration.numOutputs);
+
+      console.log("ProductStudio::Prompt: ", prompt);
+      console.log("ProductStudio:: Number of Outputs: ", productGeneration.numOutputs);
+
+      // Use the new generateStudioPhotos function
+      await generateStudioPhotos(productBase64, templateBase64, prompt, productGeneration.numOutputs);
     } catch (err: any) {
       console.error(err);
       setError(err.message || 'Something went wrong.');
@@ -174,7 +197,7 @@ export default function ProductStudio() {
 
                   <div>
                     <label className="block text-lg font-medium">Select a Template</label>
-                    <p className="text-sm text-gray-600 mb-3">Choose a style template for your product</p>
+                    <p className="text-sm text-gray-600 mb-3">Choose a style template for your product. Each template has a predefined photography style.</p>
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {templates.map((template) => (
@@ -256,8 +279,27 @@ export default function ProductStudio() {
 
                 {productGeneration.generatedPrompt && (
                   <div className="mt-6 p-4 border rounded bg-gray-50">
-                    <h3 className="text-lg font-semibold mb-2">AI-Generated Prompt:</h3>
-                    <p className="whitespace-pre-line">{productGeneration.generatedPrompt}</p>
+                    <h3 className="text-lg font-semibold mb-2">Applied Photography Style:</h3>
+                    <div className="flex flex-col md:flex-row gap-4">
+                      {productGeneration.selectedTemplate && (
+                        <div className="w-full md:w-1/4">
+                          <div className="relative h-32 w-full mb-2 rounded overflow-hidden">
+                            <Image
+                              src={templates.find(t => t.id === productGeneration.selectedTemplate)?.path || ''}
+                              alt="Template style"
+                              fill
+                              style={{ objectFit: 'cover' }}
+                            />
+                          </div>
+                          <p className="text-sm font-medium text-center">
+                            {templates.find(t => t.id === productGeneration.selectedTemplate)?.name}
+                          </p>
+                        </div>
+                      )}
+                      <div className="w-full md:w-3/4">
+                        <p className="whitespace-pre-line text-sm">{productGeneration.generatedPrompt}</p>
+                      </div>
+                    </div>
                   </div>
                 )}
 

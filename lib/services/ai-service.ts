@@ -1,5 +1,8 @@
 import OpenAI from "openai";
-import { AIServiceProvider, ImageAnalysisResult } from "./types";
+import { AIServiceProvider } from "./types";
+import { readFileSync } from "fs";
+import { File } from "buffer";
+import path from "path";
 
 // Add logging function
 function logAI(message: string, data?: any) {
@@ -12,7 +15,11 @@ function logAI(message: string, data?: any) {
 
 // Abstract base class for AI services
 export abstract class AIImageService {
-    abstract generateStudioPhoto(imagePath: string, userPrompt: string, imageAnalysis?: ImageAnalysisResult): Promise<string>;
+    abstract generateStudioPhoto(
+        images: string[],
+        prompt: string,
+        numOutputs: number
+    ): Promise<string>;
 }
 
 // OpenAI implementation
@@ -26,72 +33,60 @@ export class OpenAIImageService implements AIImageService {
         logAI("OpenAI client initialized");
     }
 
-    async generateStudioPhoto(imagePath: string, userPrompt: string, imageAnalysis?: ImageAnalysisResult): Promise<string> {
+    async generateStudioPhoto(
+        images: string[],
+        prompt: string,
+        numOutputs: number
+    ): Promise<string> {
         try {
-            // Build a detailed prompt based on the image analysis and user prompt
-            let detailedPrompt = "Create a professional product photo studio shot";
-
-            // If we have image analysis, use it to enhance the prompt
-            if (imageAnalysis) {
-                detailedPrompt += ` of ${imageAnalysis.description}`;
-
-                if (imageAnalysis.attributes) {
-                    const { color, material, shape, category } = imageAnalysis.attributes;
-                    const attributes = [];
-
-                    if (color) attributes.push(`color: ${color}`);
-                    if (material) attributes.push(`material: ${material}`);
-                    if (shape) attributes.push(`shape: ${shape}`);
-                    if (category) attributes.push(`type: ${category}`);
-
-                    if (attributes.length > 0) {
-                        detailedPrompt += ` with ${attributes.join(", ")}`;
-                    }
-                }
-            }
-            // For text-only mode, rely completely on user's prompt
-            else if (!imagePath && userPrompt) {
-                detailedPrompt += ` of ${userPrompt}`;
-            }
-            // For image without analysis, use a simpler approach
-            else {
-                detailedPrompt += ` of this product: ${userPrompt}`;
-            }
-
-            // Add user's specific requirements for image + analysis mode
-            if (imageAnalysis && userPrompt && userPrompt.trim() !== "") {
-                detailedPrompt += `. User requests: ${userPrompt}`;
-            }
-
-            // Add standard photo requirements
-            detailedPrompt += `. High quality, professional lighting, clean background, detailed product features.`;
-
-            logAI("Sending image generation request to OpenAI");
-            logAI("Prompt:", detailedPrompt.slice(0, 200) + (detailedPrompt.length > 200 ? "..." : ""));
+            logAI(`Generating studio photo with OpenAI using ${images.length} images, prompt: ${prompt}`);
 
             const startTime = Date.now();
 
-            // Generate the image
-            const response = await this.client.images.generate({
-                model: "dall-e-3",
-                prompt: detailedPrompt,
-                n: 1,
-                size: "1024x1024",
-                quality: "standard", // Use standard to save credits
-                response_format: "b64_json"
+            // Create File objects with proper MIME types for each image
+            const imageFiles = images.map(imagePath => {
+                const buffer = readFileSync(imagePath);
+                const extension = path.extname(imagePath).toLowerCase();
+                let mimeType: string;
+
+                switch (extension) {
+                    case '.png':
+                        mimeType = 'image/png';
+                        break;
+                    case '.jpg':
+                    case '.jpeg':
+                        mimeType = 'image/jpeg';
+                        break;
+                    case '.webp':
+                        mimeType = 'image/webp';
+                        break;
+                    default:
+                        throw new Error(`Unsupported image format: ${extension}`);
+                }
+
+                return new File(
+                    [buffer],
+                    path.basename(imagePath),
+                    { type: mimeType }
+                );
+            });
+
+            // Generate the image with edit
+            const response = await this.client.images.edit({
+                model: "gpt-image-1",
+                prompt: prompt,
+                image: imageFiles,
+                quality: "medium", // using medium to save credits
+                n: numOutputs
             });
 
             const endTime = Date.now();
             logAI(`OpenAI image generation completed in ${(endTime - startTime) / 1000}s`);
 
-            if (!response.data[0]?.b64_json) {
+            if (!response.data?.[0]?.b64_json) {
                 logAI("Error: OpenAI returned no image data");
                 throw new Error("No image was generated");
             }
-
-            logAI("Image generation successful", {
-                revisedPrompt: response.data[0].revised_prompt?.slice(0, 100) + "..." || "No revised prompt"
-            });
 
             return response.data[0].b64_json;
         } catch (error) {
