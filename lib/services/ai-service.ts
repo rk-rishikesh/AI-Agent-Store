@@ -5,7 +5,7 @@ import { File } from "buffer";
 import path from "path";
 
 // Add logging function
-function logAI(message: string, data?: any) {
+function logAI(message: string, data?: Record<string, unknown>) {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] 🤖 ${message}`);
     if (data) {
@@ -90,7 +90,7 @@ export class OpenAIImageService implements AIImageService {
 
             return response.data[0].b64_json;
         } catch (error) {
-            logAI("Error generating studio photo with OpenAI:", error);
+            logAI("Error generating studio photo with OpenAI:", error instanceof Error ? { message: error.message } : { error: String(error) });
             throw error;
         }
     }

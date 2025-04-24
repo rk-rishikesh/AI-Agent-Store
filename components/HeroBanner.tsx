@@ -2,6 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
+import Image from 'next/image';
 
 const HeroBanner: React.FC = () => {
   return (
@@ -10,16 +11,22 @@ const HeroBanner: React.FC = () => {
       <section>
         <div className="px-10 py-24 bg-softPurple rounded-2xl relative h-[500px] leading-[0.9] w-full">
           <div>
-            <img
-              src="/assets/images/logo.png"
-              alt="welcome"
-              className=" top-0 ml-[-5px] h-[150px]"
-            />
-            <img
-              src="/assets/images/ipixel.png"
-              alt="welcome"
-              className="absolute top-0 right-[5%] h-full"
-            />
+            <div className="relative h-[150px] w-[150px]">
+              <Image
+                src="/assets/images/logo.png"
+                alt="welcome"
+                fill
+                className="object-contain ml-[-5px]"
+              />
+            </div>
+            <div className="absolute top-0 right-[5%] h-full w-[500px]">
+              <Image
+                src="/assets/images/ipixel.png"
+                alt="welcome"
+                fill
+                className="object-contain"
+              />
+            </div>
 
             <div>
               <h2 className="text-[2.5rem] font-semibold mt-6 font-funnel ">

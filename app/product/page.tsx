@@ -78,33 +78,33 @@ export default function ProductStudio() {
   };
 
   const generateStudioPhotos = async (productImageBase64: string, templateImageBase64: string, prompt: string, numOutputs: number) => {
-    const imagePromises = [];
+    try {
+      const response = await fetch('/api/generate-studio-photo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productImage: productImageBase64,
+          templateImage: templateImageBase64,
+          prompt,
+          numOutputs
+        }),
+      });
 
-    // Instead of making multiple API calls, make a single call with numOutputs
-    const response = await fetch('/api/generate-studio-photo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        productImage: productImageBase64,
-        templateImage: templateImageBase64,
-        prompt,
-        numOutputs
-      }),
-    });
+      if (!response.ok) {
+        throw new Error('Failed to generate studio photos');
+      }
 
-    const result = await response.json();
-    console.log("ProductStudio::Result: ", result);
-
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to generate image');
+      const data = await response.json();
+      setProductGeneration(prev => ({
+        ...prev,
+        generatedImages: [...prev.generatedImages, data.imageUrl]
+      }));
+    } catch (error) {
+      console.error('Error generating studio photos:', error);
+      throw error;
     }
-
-    // For now, we only get one image back, but we'll put it in an array
-    // for consistency with the previous implementation
-    setProductGeneration(prev => ({
-      ...prev,
-      generatedImages: [result.imageUrl]
-    }));
   };
 
   const handleGenerate = async () => {
@@ -145,9 +145,9 @@ export default function ProductStudio() {
 
       // Use the new generateStudioPhotos function
       await generateStudioPhotos(productBase64, templateBase64, prompt, productGeneration.numOutputs);
-    } catch (err: any) {
+    } catch (err: Error | unknown) {
       console.error(err);
-      setError(err.message || 'Something went wrong.');
+      setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
       setIsGenerating(false);
       setStep(4);
@@ -204,11 +204,10 @@ export default function ProductStudio() {
                           setProductGeneration(prev => ({ ...prev, selectedTemplate: template.id }));
                           setStep(2);
                         }}
-                        className={`relative cursor-pointer border-2 rounded-lg overflow-hidden transition-all ${
-                          productGeneration.selectedTemplate === template.id
-                            ? 'border-blue-500 shadow-md'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
+                        className={`relative cursor-pointer border-2 rounded-lg overflow-hidden transition-all ${productGeneration.selectedTemplate === template.id
+                          ? 'border-blue-500 shadow-md'
+                          : 'border-gray-200 hover:border-gray-300'
+                          }`}
                       >
                         <div className="relative h-32 w-full">
                           <Image
@@ -239,11 +238,10 @@ export default function ProductStudio() {
                           setProductGeneration(prev => ({ ...prev, numOutputs: num }));
                           setStep(3);
                         }}
-                        className={`flex items-center justify-center h-12 w-12 rounded-lg cursor-pointer transition-all ${
-                          productGeneration.numOutputs === num
-                            ? 'bg-blue-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                        }`}
+                        className={`flex items-center justify-center h-12 w-12 rounded-lg cursor-pointer transition-all ${productGeneration.numOutputs === num
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          }`}
                       >
                         <span className="font-medium">{num}</span>
                       </div>
@@ -259,11 +257,10 @@ export default function ProductStudio() {
                   <button
                     onClick={handleGenerate}
                     disabled={isGenerating || !productGeneration.productImage || !productGeneration.selectedTemplate}
-                    className={`px-6 py-3 rounded-lg text-white font-medium ${
-                      isGenerating || !productGeneration.productImage || !productGeneration.selectedTemplate
-                        ? 'bg-gray-400 cursor-not-allowed'
-                        : 'bg-blue-600 hover:bg-blue-700'
-                    }`}
+                    className={`px-6 py-3 rounded-lg text-white font-medium ${isGenerating || !productGeneration.productImage || !productGeneration.selectedTemplate
+                      ? 'bg-gray-400 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                      }`}
                   >
                     {isGenerating ? 'Generating...' : `Generate ${productGeneration.numOutputs} Product Image${productGeneration.numOutputs > 1 ? 's' : ''}`}
                   </button>
@@ -276,9 +273,11 @@ export default function ProductStudio() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full">
                     {productGeneration.generatedImages.map((imageUrl, index) => (
                       <div key={index} className="border rounded-lg p-3 shadow-sm">
-                        <img
+                        <Image
                           src={imageUrl}
                           alt={`Generated Product ${index + 1}`}
+                          width={500}
+                          height={500}
                           className="rounded w-full h-auto"
                         />
                         <div className="mt-3 flex justify-between items-center">

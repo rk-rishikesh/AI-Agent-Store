@@ -3,7 +3,7 @@ import { ImageAnalysisResult, ImageAnalysisService } from "./types";
 import fs from "fs/promises";
 
 // Add logging function
-function logAnalysis(message: string, data?: any) {
+function logAnalysis(message: string, data?: Record<string, unknown>) {
     const timestamp = new Date().toISOString();
     console.log(`[${timestamp}] 🔍 ${message}`);
     if (data) {
@@ -93,7 +93,7 @@ Respond ONLY with a JSON object containing:
                 });
                 return result;
             } catch (error) {
-                logAnalysis("Error parsing JSON from response:", error);
+                logAnalysis("Error parsing JSON from response:", error instanceof Error ? { message: error.message } : { error: String(error) });
 
                 // Fallback: Try to extract JSON from the content
                 try {
@@ -107,7 +107,7 @@ Respond ONLY with a JSON object containing:
                         return result;
                     }
                 } catch (nestedError) {
-                    logAnalysis("Failed to extract JSON from response text");
+                    logAnalysis("Failed to extract JSON from response text", { error: String(nestedError) });
                 }
 
                 // Final fallback: return plain text as description
@@ -117,7 +117,7 @@ Respond ONLY with a JSON object containing:
                 };
             }
         } catch (error) {
-            logAnalysis("Error analyzing image:", error);
+            logAnalysis("Error analyzing image:", error instanceof Error ? { message: error.message } : { error: String(error) });
             throw error;
         }
     }

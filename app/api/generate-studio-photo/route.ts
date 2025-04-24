@@ -65,10 +65,10 @@ ${prompt || 'Create a professional product photograph with clean background and 
             imageUrl: `data:image/png;base64,${resultImageB64}`
         });
 
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
         console.error('Error generating studio photo:', error);
         return NextResponse.json({
-            error: error.message || 'Failed to generate studio photo'
+            error: error instanceof Error ? error.message : 'Failed to generate studio photo'
         }, { status: 500 });
     }
 }
