@@ -111,7 +111,7 @@ export default function Home() {
               title="Smart Ads"
               subtitle="Design AI-powered advertisements"
               image="/assets/categories/ad.png"
-              link="/product"
+              link="/ads"
               className="bg-green-50"
             />
             <BigCard
